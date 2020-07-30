@@ -1,6 +1,7 @@
-mod basic;
-
 use std::io::Write;
+
+//#[allow(dead_code)]
+mod interpreter;
 
 macro_rules! input {
     () => {{
@@ -8,7 +9,7 @@ macro_rules! input {
         std::io::stdin()
             .read_line(&mut buffer)
             .expect("Error reading input");
-        buffer.trim().to_owned()
+        buffer.trim().to_string()
     }};
     ($x:expr) => {{
         print!("{}", $x);
@@ -20,8 +21,8 @@ macro_rules! input {
 fn main() {
     let err = loop {
         let text = input!(">");
-        match basic::run(text, "interpreter".to_owned()) {
-            Ok(text) => println!("{:?}", text),
+        match interpreter::run(text, "interpreter".to_string()) {
+            Ok(_) => {}
             Err(e) => break e,
         };
     };

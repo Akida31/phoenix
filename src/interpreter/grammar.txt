@@ -1,0 +1,6 @@
+expr: term ((PLUS|MINUS) term)*
+
+term: number ((MUL|DIV) number)*
+
+number: (PLUS|MINUS)? INT|FLOAT
+    | LeftParenthesis expr RightParenthesis
