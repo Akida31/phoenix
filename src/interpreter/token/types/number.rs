@@ -1,15 +1,6 @@
+use crate::interpreter::token::types::{Operators, Type};
+use crate::interpreter::{Error, ErrorKind};
 use std::fmt::{self, Display, Formatter};
-
-trait Number
-where
-    Self: std::marker::Sized + Display + Clone,
-{
-    fn add(&self, other: Self) -> Self;
-    fn subtract(&self, other: Self) -> Self;
-    fn multiply(&self, other: Self) -> Self;
-    fn divide(&self, other: Self) -> Self;
-    fn save_divide(&self, other: Self) -> Option<Self>;
-}
 
 #[derive(Clone, PartialEq)]
 pub struct Integer {
@@ -28,25 +19,52 @@ impl Display for Integer {
     }
 }
 
-impl Number for Integer {
-    fn add(&self, other: Self) -> Self {
-        Self::new(self.value + other.value)
-    }
-    fn subtract(&self, other: Self) -> Self {
-        Self::new(self.value - other.value)
-    }
-    fn multiply(&self, other: Self) -> Self {
-        Self::new(self.value * other.value)
-    }
-    fn divide(&self, other: Self) -> Self {
-        Self::new(self.value / other.value)
-    }
-    fn save_divide(&self, other: Self) -> Option<Self> {
-        if other.value == 0 {
-            None
-        } else {
-            Some(self.divide(other))
+impl Operators for Integer {
+    fn add(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Integer(v) => Ok(Type::Integer(Self::new(self.value + v.value))),
+            _ => Err(Error::new(
+                ErrorKind::Undefined,
+                "No valid type".to_string(),
+                None,
+            )),
         }
+    }
+
+    fn sub(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Integer(v) => Ok(Type::Integer(Self::new(self.value - v.value))),
+            _ => Err(Error::new(
+                ErrorKind::Undefined,
+                "No valid type".to_string(),
+                None,
+            )),
+        }
+    }
+
+    fn mul(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Integer(v) => Ok(Type::Integer(Self::new(self.value * v.value))),
+            _ => Err(Error::new(
+                ErrorKind::Undefined,
+                "No valid type".to_string(),
+                None,
+            )),
+        }
+    }
+    fn div(&self, other: Type) -> Result<Type, Error> {
+        if other == Type::Integer(Integer::new(0)) {
+            Err(Error::new(
+                ErrorKind::ZeroDivision,
+                "can't divide by 0".to_string(),
+                None,
+            ))
+        } else {
+            self.div(other)
+        }
+    }
+    fn neg(&self) -> Result<Type, Error> {
+        Ok(Type::Integer(Self::new(-self.value)))
     }
 }
 
@@ -67,24 +85,51 @@ impl Display for Float {
     }
 }
 
-impl Number for Float {
-    fn add(&self, other: Self) -> Self {
-        Self::new(self.value + other.value)
-    }
-    fn subtract(&self, other: Self) -> Self {
-        Self::new(self.value - other.value)
-    }
-    fn multiply(&self, other: Self) -> Self {
-        Self::new(self.value * other.value)
-    }
-    fn divide(&self, other: Self) -> Self {
-        Self::new(self.value / other.value)
-    }
-    fn save_divide(&self, other: Self) -> Option<Self> {
-        if other.value == 0.0 {
-            None
-        } else {
-            Some(self.divide(other))
+impl Operators for Float {
+    fn add(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Float(v) => Ok(Type::Float(Self::new(self.value + v.value))),
+            _ => Err(Error::new(
+                ErrorKind::Undefined,
+                "No valid type".to_string(),
+                None,
+            )),
         }
+    }
+
+    fn sub(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Float(v) => Ok(Type::Float(Self::new(self.value - v.value))),
+            _ => Err(Error::new(
+                ErrorKind::Undefined,
+                "No valid type".to_string(),
+                None,
+            )),
+        }
+    }
+
+    fn mul(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Float(v) => Ok(Type::Float(Self::new(self.value * v.value))),
+            _ => Err(Error::new(
+                ErrorKind::Undefined,
+                "No valid type".to_string(),
+                None,
+            )),
+        }
+    }
+    fn div(&self, other: Type) -> Result<Type, Error> {
+        if other == Type::Float(Float::new(0.0)) {
+            Err(Error::new(
+                ErrorKind::ZeroDivision,
+                "can't divide by 0".to_string(),
+                None,
+            ))
+        } else {
+            self.div(other)
+        }
+    }
+    fn neg(&self) -> Result<Type, Error> {
+        Ok(Type::Float(Self::new(-self.value)))
     }
 }

@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::interpreter::{Token, token::Sign, Position};
 use crate::interpreter::token::types::Type;
+use crate::interpreter::{token::Sign, Position, Token};
 
 #[derive(Clone)]
 pub struct Node {
@@ -11,10 +11,7 @@ pub struct Node {
 
 impl Node {
     pub fn new(ty: NodeType, pos: Position) -> Self {
-        Self {
-            ty,
-            pos
-        }
+        Self { ty, pos }
     }
     pub fn get_type(&self) -> NodeType {
         self.ty.clone()
@@ -31,7 +28,6 @@ impl Display for Node {
     }
 }
 
-
 #[derive(Clone)]
 pub enum NodeType {
     Node(Type),
@@ -46,7 +42,6 @@ impl Display for NodeType {
         }
     }
 }
-
 
 #[derive(Clone)]
 pub enum OperationType {
@@ -86,6 +81,10 @@ impl BinaryOperationNode {
     pub fn get_right(&self) -> Node {
         self.right.clone()
     }
+
+    pub fn get_operation(&self) -> Token {
+        self.operation.clone()
+    }
 }
 
 impl Display for BinaryOperationNode {
@@ -102,22 +101,26 @@ impl Display for BinaryOperationNode {
 
 #[derive(Clone)]
 pub struct UnaryOperationNode {
-    operator: Sign,
+    operation: Sign,
     node: Node,
 }
 
 impl UnaryOperationNode {
-    pub fn new(operator: Sign, node: Node) -> Self {
-        Self { operator, node }
+    pub fn new(operation: Sign, node: Node) -> Self {
+        Self { operation, node }
     }
 
     pub fn get_node(&self) -> Node {
         self.node.clone()
     }
+
+    pub fn get_operation(&self) -> Sign {
+        self.operation.clone()
+    }
 }
 
 impl Display for UnaryOperationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}{}", self.operator, self.node)
+        write!(f, "{}{}", self.operation, self.node)
     }
 }

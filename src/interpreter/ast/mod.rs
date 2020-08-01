@@ -2,8 +2,8 @@ use crate::interpreter::{Error, Position, Token};
 
 pub mod nodes;
 
-use crate::interpreter::ast::nodes::{OperationType, UnaryOperationNode, NodeType};
-use crate::interpreter::token::{Sign};
+use crate::interpreter::ast::nodes::{NodeType, OperationType, UnaryOperationNode};
+use crate::interpreter::token::Sign;
 use crate::interpreter::ErrorKind::{EndOfFile, SyntaxError};
 
 use nodes::{BinaryOperationNode, Node};
@@ -75,12 +75,12 @@ impl Parser {
                 Ok(res) => res,
                 Err(e) => return Err(e),
             };
-            let pos = left.get_pos();
-            let pos = Position::new(pos.index(), pos.filename(), pos.line(), pos.column(), pos.len());
-            left = Node::new(NodeType::Operation(OperationType::BinaryOperationNode(Box::new(
-                BinaryOperationNode::new(left, operation.clone().0, right),
-            ))),
-            pos);
+            left = Node::new(
+                NodeType::Operation(OperationType::BinaryOperationNode(Box::new(
+                    BinaryOperationNode::new(left.clone(), operation.clone().0, right.clone()),
+                ))),
+                left.get_pos().combine(right.get_pos()),
+            );
         }
         Ok(left)
     }
@@ -100,13 +100,16 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
         Some((token, pos)) if token == Token::Minus || token == Token::Plus => {
             parser.advance();
             match number(parser) {
-                Ok(ty) => Ok(Node::new(NodeType::Operation(OperationType::UnaryOperationNode(
-                    // unwrap is safe because of the check above
-                    Box::new(UnaryOperationNode::new(
-                        Sign::from_token(token).unwrap(),
-                        ty,
+                Ok(ty) => Ok(Node::new(
+                    NodeType::Operation(OperationType::UnaryOperationNode(
+                        // unwrap is safe because of the check above
+                        Box::new(UnaryOperationNode::new(
+                            Sign::from_token(token).unwrap(),
+                            ty,
+                        )),
                     )),
-                )), pos)),
+                    pos,
+                )),
                 Err(e) => Err(e),
             }
         }

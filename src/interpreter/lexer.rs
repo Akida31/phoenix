@@ -1,5 +1,5 @@
+use crate::interpreter::token::types::{Float, Integer, Type};
 use crate::interpreter::{Error, ErrorKind, Position, Token};
-use crate::interpreter::token::types::{Integer, Float, Type};
 
 pub struct Lexer {
     text: String,
@@ -11,7 +11,7 @@ impl Lexer {
     pub fn new(text: String, file_name: String) -> Self {
         let mut lexer = Self {
             text,
-            pos: Position::new(-1, file_name, 0, -1, 1),
+            pos: Position::new(-1, file_name, 0, -1, 1, None),
             current_char: None,
         };
         lexer.advance();

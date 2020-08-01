@@ -1,6 +1,5 @@
 use std::io::Write;
 
-//#[allow(dead_code)]
 mod interpreter;
 
 macro_rules! input {
@@ -19,12 +18,11 @@ macro_rules! input {
 }
 
 fn main() {
-    let err = loop {
+    loop {
         let text = input!(">");
-        match interpreter::run(text, "interpreter".to_string()) {
-            Ok(_) => {}
-            Err(e) => break e,
+        match interpreter::run(text, "\"<stdin>\"".to_string()) {
+            Ok(ty) => println!("{}", ty),
+            Err(e) => println!("{}", e),
         };
-    };
-    println!("{}", err);
+    }
 }
