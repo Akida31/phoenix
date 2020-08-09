@@ -1,26 +1,21 @@
-use crate::interpreter::{Error, Position, Token};
+use crate::interpreter::{Error, ErrorKind, Position, Token};
 
 pub mod nodes;
 
-use crate::interpreter::ast::nodes::{NodeType, OperationType, UnaryOperationNode};
+use crate::interpreter::ast::nodes::{Assignment, NodeType, OperationType, UnaryOperationNode};
+use crate::interpreter::token::keyword::Keyword;
 use crate::interpreter::token::Sign;
 use crate::interpreter::ErrorKind::{EndOfFile, SyntaxError};
-
 use nodes::{BinaryOperationNode, Node};
 
 pub struct Parser {
     tokens: Vec<(Token, Position)>,
     index: isize,
-    current_token: Option<(Token, Position)>,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<(Token, Position)>) -> Self {
-        let mut parser = Self {
-            tokens,
-            index: -1,
-            current_token: None,
-        };
+        let mut parser = Self { tokens, index: -1 };
         parser.advance();
         parser
     }
@@ -44,15 +39,15 @@ impl Parser {
     }
 
     fn current_token(&self) -> Option<(Token, Position)> {
-        self.current_token.clone()
+        if self.index >= 0 && self.index < self.tokens.len() as isize {
+            Some(self.tokens[self.index as usize].clone())
+        } else {
+            None
+        }
     }
 
     fn advance(&mut self) -> Option<(Token, Position)> {
-        // TODO improve this, maybe remove self.current_token
         self.index += 1;
-        if self.index < self.tokens.len() as isize {
-            self.current_token = Some(self.tokens[self.index as usize].clone());
-        }
         self.current_token()
     }
 
@@ -86,16 +81,58 @@ impl Parser {
     }
 
     fn expr(&mut self) -> Result<Node, Error> {
-        self.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
+        let current_token = self.current_token();
+        if current_token.is_some() && current_token.unwrap().0 == Token::Keyword(Keyword::Let) {
+            self.advance();
+            if let Some(c) = self.current_token() {
+                let pos = c.1;
+                if let Token::Ident(i) = c.0 {
+                    let name = i;
+                    self.advance();
+                    if let Some(c) = self.current_token() {
+                        if Token::Equal == c.0 {
+                            self.advance();
+                            let expr = self.expr()?;
+                            return Ok(Node::new(
+                                NodeType::Assign(Assignment::new(name, expr)),
+                                pos,
+                            ));
+                        }
+                    }
+                    Err(Error::new(
+                        ErrorKind::SyntaxError,
+                        "expected =".to_string(),
+                        Some(pos),
+                    ))
+                } else {
+                    Err(Error::new(
+                        ErrorKind::SyntaxError,
+                        "expected identifier".to_string(),
+                        Some(pos),
+                    ))
+                }
+            } else {
+                Err(Error::new(
+                    ErrorKind::SyntaxError,
+                    "expected expression".to_string(),
+                    None,
+                ))
+            }
+        } else {
+            self.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
+        }
     }
 }
 
-// TODO move this into method
 fn number(parser: &mut Parser) -> Result<Node, Error> {
     match parser.current_token() {
         Some((Token::Type(ty), pos)) => {
             parser.advance();
             Ok(Node::new(NodeType::Node(ty), pos))
+        }
+        Some((Token::Ident(ident), pos)) => {
+            parser.advance();
+            Ok(Node::new(NodeType::Var(ident), pos))
         }
         Some((token, pos)) if token == Token::Minus || token == Token::Plus => {
             parser.advance();
@@ -154,7 +191,6 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
     }
 }
 
-// TODO move this into method
 fn term(parser: &mut Parser) -> Result<Node, Error> {
     parser.binary_operation(&mut number, vec![Token::Star, Token::Slash])
 }

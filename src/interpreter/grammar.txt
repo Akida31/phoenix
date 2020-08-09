@@ -1,6 +1,8 @@
-expr: term ((PLUS|MINUS) term)*
+expr: KEYWORD:LET IDENT EQ expr
+    : term ((PLUS|MINUS) term)*
 
 term: number ((MUL|DIV) number)*
 
-number: (PLUS|MINUS)? INT|FLOAT
+number: (PLUS|MINUS)? INT|FLOAT|IDENT
     | LeftParenthesis expr RightParenthesis
+

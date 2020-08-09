@@ -1,3 +1,5 @@
+#![feature(try_trait)]
+
 use std::io::Write;
 
 mod interpreter;
@@ -18,11 +20,16 @@ macro_rules! input {
 }
 
 fn main() {
+    let mut stack = interpreter::new_stack();
+    let version = env!("CARGO_PKG_VERSION");
+    println!("Phoenix v{}", version);
     loop {
         let text = input!(">");
-        match interpreter::run(text, "\"<stdin>\"".to_string()) {
+        let res = interpreter::run(text, "\"<stdin>\"".to_string(), Some(stack));
+        match res.res {
             Ok(ty) => println!("{}", ty),
             Err(e) => println!("{}", e),
         };
+        stack = res.stack;
     }
 }

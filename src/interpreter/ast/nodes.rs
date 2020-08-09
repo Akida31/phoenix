@@ -1,5 +1,6 @@
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{self, Display, Formatter};
 
+use crate::interpreter::token::ident::Ident;
 use crate::interpreter::token::types::Type;
 use crate::interpreter::{token::Sign, Position, Token};
 
@@ -23,7 +24,7 @@ impl Node {
 }
 
 impl Display for Node {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.ty)
     }
 }
@@ -32,14 +33,46 @@ impl Display for Node {
 pub enum NodeType {
     Node(Type),
     Operation(OperationType),
+    Assign(Assignment),
+    Var(Ident),
 }
 
 impl Display for NodeType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Node(node) => write!(f, "{}", node.to_string()),
-            Self::Operation(op) => write!(f, "({})", op.to_string()),
+            Self::Node(node) => write!(f, "{}", node),
+            Self::Operation(op) => write!(f, "({})", op),
+            Self::Assign(node) => write!(f, "{}", node),
+            Self::Var(node) => write!(f, "{}", node),
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Assignment {
+    name: Ident,
+    expr: Box<Node>,
+}
+
+impl Assignment {
+    pub fn new(name: Ident, expr: Node) -> Self {
+        Self {
+            name,
+            expr: Box::new(expr),
+        }
+    }
+
+    pub fn get_name(&self) -> Ident {
+        self.name.clone()
+    }
+    pub fn get_expr(&self) -> Box<Node> {
+        self.expr.clone()
+    }
+}
+
+impl Display for Assignment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}={}", self.name, self.expr)
     }
 }
 
@@ -50,7 +83,7 @@ pub enum OperationType {
 }
 
 impl Display for OperationType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::BinaryOperationNode(node) => write!(f, "{}", node.to_string()),
             Self::UnaryOperationNode(node) => write!(f, "({})", node.to_string()),
@@ -88,7 +121,7 @@ impl BinaryOperationNode {
 }
 
 impl Display for BinaryOperationNode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}{}{}",
@@ -120,7 +153,7 @@ impl UnaryOperationNode {
 }
 
 impl Display for UnaryOperationNode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}{}", self.operation, self.node)
     }
 }

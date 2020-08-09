@@ -11,24 +11,24 @@ where
 {
     fn add(&self, _other: Type) -> Result<Type, Error> {
         Err(Error::new(
-            ErrorKind::Undefined,
-            "method 'add' is not implemented".to_string(),
+            ErrorKind::Unimplemented,
+            format!("method 'add' is not implemented for {}", self),
             None,
         ))
     }
 
     fn sub(&self, _other: Type) -> Result<Type, Error> {
         Err(Error::new(
-            ErrorKind::Undefined,
-            "method 'sub' is not implemented".to_string(),
+            ErrorKind::Unimplemented,
+            format!("method 'sub' is not implemented for {}", self),
             None,
         ))
     }
 
     fn mul(&self, _other: Type) -> Result<Type, Error> {
         Err(Error::new(
-            ErrorKind::Undefined,
-            "method 'mul' is not implemented".to_string(),
+            ErrorKind::Unimplemented,
+            format!("method 'mul' is not implemented for {}", self),
             None,
         ))
     }
@@ -36,16 +36,16 @@ where
     /// Important when implementing this method you should care for a ZeroDevisionError in your implementation
     fn div(&self, _other: Type) -> Result<Type, Error> {
         Err(Error::new(
-            ErrorKind::Undefined,
-            "method 'div' is not implemented".to_string(),
+            ErrorKind::Unimplemented,
+            format!("method 'div' is not implemented for {}", self),
             None,
         ))
     }
 
     fn neg(&self) -> Result<Type, Error> {
         Err(Error::new(
-            ErrorKind::Undefined,
-            "method 'neg' is not implemented".to_string(),
+            ErrorKind::Unimplemented,
+            format!("method 'neg' is not implemented for {}", self),
             None,
         ))
     }
@@ -55,6 +55,12 @@ where
 pub enum Type {
     Integer(Integer),
     Float(Float),
+}
+
+impl std::fmt::Debug for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
 }
 
 impl std::convert::AsRef<dyn Operators> for Type {

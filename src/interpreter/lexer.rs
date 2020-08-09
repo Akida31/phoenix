@@ -1,4 +1,5 @@
 use crate::interpreter::token::types::{Float, Integer, Type};
+use crate::interpreter::token::{ident, keyword};
 use crate::interpreter::{Error, ErrorKind, Position, Token};
 
 pub struct Lexer {
@@ -11,7 +12,7 @@ impl Lexer {
     pub fn new(text: String, file_name: String) -> Self {
         let mut lexer = Self {
             text,
-            pos: Position::new(-1, file_name, 0, -1, 1, None),
+            pos: Position::new(-1, file_name, 0, -1, 1),
             current_char: None,
         };
         lexer.advance();
@@ -57,8 +58,16 @@ impl Lexer {
                     tokens.push((Token::RightParenthesis, self.pos.clone()));
                     self.advance();
                 }
+                '=' => {
+                    tokens.push((Token::Equal, self.pos.clone()));
+                    self.advance();
+                }
                 c if c.is_digit(10) => match self.make_number() {
                     Ok(number) => tokens.push(number),
+                    Err(e) => return Err(e),
+                },
+                c if c.is_ascii_alphabetic() => match self.make_ident() {
+                    Ok(i) => tokens.push(i),
                     Err(e) => return Err(e),
                 },
                 c => {
@@ -73,6 +82,26 @@ impl Lexer {
         }
         tokens.push((Token::EOF, self.pos.clone()));
         Ok(tokens)
+    }
+
+    fn make_ident(&mut self) -> Result<(Token, Position), Error> {
+        let mut ident = String::new();
+        let pos_start = self.pos.clone();
+        while let Some(c) = self.current_char {
+            if !(c.is_ascii_alphanumeric() || c == '_') {
+                break;
+            }
+            ident += &c.to_string();
+            self.advance();
+        }
+        Ok((
+            if keyword::is_keyword(ident.clone()) {
+                Token::Keyword(keyword::Keyword::Let)
+            } else {
+                Token::Ident(ident::Ident::new(ident))
+            },
+            pos_start.combine(self.pos.clone()),
+        ))
     }
 
     fn make_number(&mut self) -> Result<(Token, Position), Error> {

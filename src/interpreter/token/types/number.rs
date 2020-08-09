@@ -24,7 +24,7 @@ impl Operators for Integer {
         match other {
             Type::Integer(v) => Ok(Type::Integer(Self::new(self.value + v.value))),
             _ => Err(Error::new(
-                ErrorKind::Undefined,
+                ErrorKind::TypeError,
                 "No valid type".to_string(),
                 None,
             )),
@@ -35,7 +35,7 @@ impl Operators for Integer {
         match other {
             Type::Integer(v) => Ok(Type::Integer(Self::new(self.value - v.value))),
             _ => Err(Error::new(
-                ErrorKind::Undefined,
+                ErrorKind::TypeError,
                 "No valid type".to_string(),
                 None,
             )),
@@ -46,7 +46,7 @@ impl Operators for Integer {
         match other {
             Type::Integer(v) => Ok(Type::Integer(Self::new(self.value * v.value))),
             _ => Err(Error::new(
-                ErrorKind::Undefined,
+                ErrorKind::TypeError,
                 "No valid type".to_string(),
                 None,
             )),
@@ -60,9 +60,17 @@ impl Operators for Integer {
                 None,
             ))
         } else {
-            self.div(other)
+            match other {
+                Type::Integer(v) => Ok(Type::Integer(Self::new(self.value / v.value))),
+                _ => Err(Error::new(
+                    ErrorKind::TypeError,
+                    "No valid type".to_string(),
+                    None,
+                )),
+            }
         }
     }
+
     fn neg(&self) -> Result<Type, Error> {
         Ok(Type::Integer(Self::new(-self.value)))
     }
@@ -90,7 +98,7 @@ impl Operators for Float {
         match other {
             Type::Float(v) => Ok(Type::Float(Self::new(self.value + v.value))),
             _ => Err(Error::new(
-                ErrorKind::Undefined,
+                ErrorKind::TypeError,
                 "No valid type".to_string(),
                 None,
             )),
@@ -101,7 +109,7 @@ impl Operators for Float {
         match other {
             Type::Float(v) => Ok(Type::Float(Self::new(self.value - v.value))),
             _ => Err(Error::new(
-                ErrorKind::Undefined,
+                ErrorKind::TypeError,
                 "No valid type".to_string(),
                 None,
             )),
@@ -112,12 +120,13 @@ impl Operators for Float {
         match other {
             Type::Float(v) => Ok(Type::Float(Self::new(self.value * v.value))),
             _ => Err(Error::new(
-                ErrorKind::Undefined,
+                ErrorKind::TypeError,
                 "No valid type".to_string(),
                 None,
             )),
         }
     }
+
     fn div(&self, other: Type) -> Result<Type, Error> {
         if other == Type::Float(Float::new(0.0)) {
             Err(Error::new(
@@ -126,9 +135,17 @@ impl Operators for Float {
                 None,
             ))
         } else {
-            self.div(other)
+            match other {
+                Type::Float(v) => Ok(Type::Float(Self::new(self.value / v.value))),
+                _ => Err(Error::new(
+                    ErrorKind::TypeError,
+                    "No valid type".to_string(),
+                    None,
+                )),
+            }
         }
     }
+
     fn neg(&self) -> Result<Type, Error> {
         Ok(Type::Float(Self::new(-self.value)))
     }

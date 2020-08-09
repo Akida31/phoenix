@@ -1,14 +1,69 @@
 mod ast;
 mod errors;
-pub mod lexer;
-pub mod token;
+mod lexer;
+mod stack;
+mod token;
 
 use ast::nodes::{BinaryOperationNode, Node, NodeType, OperationType, UnaryOperationNode};
+use stack::Stack;
 use token::types::Type;
 use token::Sign;
 
+use crate::interpreter::ast::nodes::Assignment;
+use crate::interpreter::token::ident::Ident;
 pub use errors::*;
-pub use token::Token;
+use token::Token;
+
+#[derive(Clone, Debug)]
+pub struct Context {
+    pos: Position,
+    stack: Stack,
+    context: Option<Box<Context>>,
+}
+
+impl Context {
+    pub fn new(pos: Position, stack: Stack, context: Option<Context>) -> Self {
+        Self {
+            pos,
+            context: if let Some(ctx) = context {
+                Some(Box::new(ctx))
+            } else {
+                None
+            },
+            stack,
+        }
+    }
+
+    pub fn context(&self) -> Option<Box<Context>> {
+        self.context.clone()
+    }
+
+    pub fn get_position(&self) -> Position {
+        self.pos.clone()
+    }
+
+    pub fn combine(&self, other: Self) -> Self {
+        let mut stack = self.stack.clone();
+        stack.combine(other.stack.clone());
+        Self::new(
+            Position::new(
+                self.pos.index,
+                self.pos.filename.clone(),
+                self.pos.line,
+                self.pos.column,
+                (other.pos.index - self.pos.index) as u64 + other.pos.len,
+            ),
+            stack,
+            if self.context.is_some() {
+                Some(*self.context().unwrap())
+            } else if other.context.is_some() {
+                Some(*other.context().unwrap())
+            } else {
+                None
+            },
+        )
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Position {
@@ -17,29 +72,16 @@ pub struct Position {
     line: u64,
     column: i64,
     len: u64,
-    context: Option<Box<Position>>,
 }
 
 impl Position {
-    pub fn new(
-        index: i64,
-        filename: String,
-        line: u64,
-        column: i64,
-        len: u64,
-        context: Option<Position>,
-    ) -> Self {
+    pub fn new(index: i64, filename: String, line: u64, column: i64, len: u64) -> Self {
         Self {
             index,
             filename,
             line,
             column,
             len,
-            context: if let Some(ctx) = context {
-                Some(Box::new(ctx))
-            } else {
-                None
-            },
         }
     }
 
@@ -56,10 +98,6 @@ impl Position {
         self.len
     }
 
-    pub fn context(&self) -> Option<Box<Position>> {
-        self.context.clone()
-    }
-
     pub fn set_len(&mut self, len: u64) {
         self.len = len
     }
@@ -71,18 +109,10 @@ impl Position {
             self.line,
             self.column,
             (other.index - self.index) as u64 + other.len,
-            if self.context.is_some() {
-                Some(*self.context().unwrap())
-            } else if other.context.is_some() {
-                Some(*other.context().unwrap())
-            } else {
-                None
-            },
         )
     }
-
     // TODO use this in modules
-    pub fn add_context(&self, context: Box<Position>) -> Self {
+    /*pub fn add_context(&self, context: Box<Position>) -> Self {
         Self {
             index: self.index,
             filename: self.filename.clone(),
@@ -90,42 +120,87 @@ impl Position {
             column: self.column,
             len: self.len,
             context: Some(context),
+
         }
+    }*/
+}
+
+pub struct InterpretionResult {
+    pub res: Result<Type, Error>,
+    pub stack: stack::Stack,
+}
+
+impl InterpretionResult {
+    fn new(res: Result<Type, Error>, stack: stack::Stack) -> Self {
+        Self { res, stack }
     }
 }
 
-pub fn run(text: String, file_name: String) -> Result<Type, Error> {
-    let mut lexer = lexer::Lexer::new(text, file_name.clone());
-    let tokens = lexer.make_tokens()?;
-    let mut parser = ast::Parser::new(tokens);
-    let ast = parser.parse()?;
-    let context = Position::new(0, file_name, 0, 0, 0, None);
-    let (ty, _pos) = visit(ast, context)?;
-    Ok(ty)
+pub fn new_stack() -> Stack {
+    stack::Stack::new(None)
 }
 
-pub fn visit(node: Node, context: Position) -> Result<(Type, Position), Error> {
+pub fn run(text: String, file_name: String, stack: Option<Stack>) -> InterpretionResult {
+    let stack = stack.unwrap_or_else(new_stack);
+    let mut lexer = lexer::Lexer::new(text, file_name.clone());
+    let tokens = match lexer.make_tokens() {
+        Ok(t) => t,
+        Err(e) => return InterpretionResult::new(Err(e), stack),
+    };
+    let mut parser = ast::Parser::new(tokens);
+    let ast = match parser.parse() {
+        Ok(n) => n,
+        Err(e) => return InterpretionResult::new(Err(e), stack),
+    };
+    let pos = Position::new(0, file_name, 0, 0, 0);
+    let context = Context::new(pos, stack.clone(), None);
+    let (ty, context) = match visit(ast, context) {
+        Ok(t) => t,
+        Err(e) => return InterpretionResult::new(Err(e), stack),
+    };
+    InterpretionResult::new(Ok(ty), context.stack)
+}
+
+pub fn visit(node: Node, context: Context) -> Result<(Type, Context), Error> {
     let position = node.get_pos();
     match node.get_type() {
-        NodeType::Node(ty) => Ok((ty, position)),
+        NodeType::Node(ty) => Ok((ty, context)),
         NodeType::Operation(op) => match op {
-            OperationType::BinaryOperationNode(op) => {
-                visit_binary_operation(*op, position, context)
-            }
+            OperationType::BinaryOperationNode(op) => visit_binary_operation(*op, context),
             OperationType::UnaryOperationNode(op) => visit_unary_operation(*op, position, context),
         },
+        NodeType::Var(id) => visit_var(id, context),
+        NodeType::Assign(a) => visit_assignment(a, context),
+    }
+}
+
+fn visit_assignment(node: Assignment, context: Context) -> Result<(Type, Context), Error> {
+    let value = visit(*node.get_expr(), context)?;
+    let mut context = value.1;
+    context.stack.set(node.get_name(), value.0.clone());
+    Ok((value.0, context))
+}
+
+fn visit_var(node: Ident, context: Context) -> Result<(Type, Context), Error> {
+    let value = context.stack.get(node.clone());
+    match value {
+        Some(val) => Ok((val, context)),
+        None => Err(Error::new(
+            ErrorKind::NameError,
+            format!("{} is not defined", node.get()),
+            Some(context.get_position()),
+        )),
     }
 }
 
 // TODO improve position marking
 fn visit_binary_operation(
     node: BinaryOperationNode,
-    _pos: Position,
-    context: Position,
-) -> Result<(Type, Position), Error> {
-    let (left_ty, left_pos) = visit(node.get_left(), context.clone())?;
-    let (right_ty, right_pos) = visit(node.get_right(), context)?;
-    let pos = left_pos.combine(right_pos);
+    context: Context,
+) -> Result<(Type, Context), Error> {
+    let (left_ty, left_ctx) = visit(node.get_left(), context.clone())?;
+    let (right_ty, right_ctx) = visit(node.get_right(), context)?;
+    let ctx = left_ctx.combine(right_ctx);
     let full = match node.get_operation() {
         Token::Plus => left_ty.as_ref().add(right_ty),
         Token::Minus => left_ty.as_ref().sub(right_ty),
@@ -134,35 +209,35 @@ fn visit_binary_operation(
         t => Err(Error::new(
             ErrorKind::Undefined,
             format!("can't operate on token {}", t),
-            Some(pos.clone()),
+            Some(ctx.get_position()),
         )),
     };
     // fill position of full
     match full {
-        Ok(f) => Ok((f, pos)),
-        Err(e) => Err(e.with_position(pos)),
+        Ok(f) => Ok((f, ctx)),
+        Err(e) => Err(e.with_context(ctx)),
     }
 }
 
 fn visit_unary_operation(
     node: UnaryOperationNode,
     _pos: Position,
-    context: Position,
-) -> Result<(Type, Position), Error> {
-    let (ty, pos) = visit(node.get_node(), context.clone())?;
+    context: Context,
+) -> Result<(Type, Context), Error> {
+    let (ty, ctx) = visit(node.get_node(), context.clone())?;
     let new_pos = Position::new(
-        pos.index - 1,
-        pos.filename,
-        pos.line,
-        pos.column,
-        pos.len + 1,
-        Some(context),
+        ctx.pos.index - 1,
+        ctx.pos.filename,
+        ctx.pos.line,
+        ctx.pos.column,
+        ctx.pos.len + 1,
     );
+    let new_ctx = Context::new(new_pos, context.stack.clone(), Some(context));
     Ok((
         match node.get_operation() {
             Sign::Plus => ty,
             Sign::Minus => ty.as_ref().neg()?,
         },
-        new_pos,
+        new_ctx,
     ))
 }

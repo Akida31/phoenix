@@ -9,8 +9,12 @@ The Grammar of Phoenix can be found in `src/interpreter/grammar.txt`
 # Features
 - Lexing
 - Parsing to AST
+- Interpreting
+- Variables
 
 # TODO 
 - split files -> stdlib
-- negative numbers
 - Documentation
+- Web interpreter
+- lib instead of binary with io handlers
+- add help and exit command
