@@ -58,10 +58,12 @@ impl Lexer {
                     tokens.push((Token::RightParenthesis, self.pos.clone()));
                     self.advance();
                 }
-                '=' => {
-                    tokens.push((Token::Equal, self.pos.clone()));
-                    self.advance();
-                }
+                '!' => tokens.push(self.make_not()),
+                '&' => tokens.push(self.make_and()?),
+                '|' => tokens.push(self.make_or()?),
+                '=' => tokens.push(self.make_eq()),
+                '<' => tokens.push(self.make_less_than()),
+                '>' => tokens.push(self.make_greater_than()),
                 c if c.is_digit(10) => match self.make_number() {
                     Ok(number) => tokens.push(number),
                     Err(e) => return Err(e),
@@ -74,7 +76,7 @@ impl Lexer {
                     let position = self.pos.clone();
                     return Err(Error::new(
                         ErrorKind::SyntaxError,
-                        format!("Illegal character: {}", c),
+                        &*format!("Illegal character: {}", c),
                         Some(position),
                     ));
                 }
@@ -102,6 +104,80 @@ impl Lexer {
             },
             pos_start.combine(self.pos.clone()),
         ))
+    }
+
+    fn make_less_than(&mut self) -> (Token, Position) {
+        let pos = self.pos.clone();
+        self.advance();
+        if self.current_char == Some('=') {
+            self.advance();
+            (Token::LessThanEq, pos.combine(self.pos.clone()))
+        } else {
+            (Token::LessThan, pos)
+        }
+    }
+
+    fn make_and(&mut self) -> Result<(Token, Position), Error> {
+        let pos = self.pos.clone();
+        self.advance();
+        if self.current_char == Some('&') {
+            self.advance();
+            Ok((Token::DoubleAnd, pos.combine(self.pos.clone())))
+        } else {
+            Err(Error::new(
+                ErrorKind::SyntaxError,
+                "expected &",
+                Some(self.pos.clone()),
+            ))
+        }
+    }
+
+    fn make_or(&mut self) -> Result<(Token, Position), Error> {
+        let pos = self.pos.clone();
+        self.advance();
+        if self.current_char == Some('|') {
+            self.advance();
+            Ok((Token::DoubleOr, pos.combine(self.pos.clone())))
+        } else {
+            Err(Error::new(
+                ErrorKind::SyntaxError,
+                "expected |",
+                Some(self.pos.clone()),
+            ))
+        }
+    }
+
+    fn make_greater_than(&mut self) -> (Token, Position) {
+        let pos = self.pos.clone();
+        self.advance();
+        if self.current_char == Some('=') {
+            self.advance();
+            (Token::GreaterThanEq, pos.combine(self.pos.clone()))
+        } else {
+            (Token::GreaterThan, pos)
+        }
+    }
+
+    fn make_eq(&mut self) -> (Token, Position) {
+        let pos = self.pos.clone();
+        self.advance();
+        if self.current_char == Some('=') {
+            self.advance();
+            (Token::DoubleEqual, pos.combine(self.pos.clone()))
+        } else {
+            (Token::Equal, pos)
+        }
+    }
+
+    fn make_not(&mut self) -> (Token, Position) {
+        let pos = self.pos.clone();
+        self.advance();
+        if self.current_char == Some('=') {
+            self.advance();
+            (Token::NonEqual, pos.combine(self.pos.clone()))
+        } else {
+            (Token::Bang, pos)
+        }
     }
 
     fn make_number(&mut self) -> Result<(Token, Position), Error> {

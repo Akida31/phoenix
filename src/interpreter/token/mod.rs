@@ -8,35 +8,6 @@ use keyword::Keyword;
 use types::Type;
 
 #[derive(Clone, PartialEq)]
-pub enum Sign {
-    Plus,
-    Minus,
-}
-
-impl Display for Sign {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Plus => "+",
-                Self::Minus => "-",
-            }
-        )
-    }
-}
-
-impl Sign {
-    pub fn from_token(t: Token) -> Option<Self> {
-        match t {
-            Token::Plus => Some(Sign::Plus),
-            Token::Minus => Some(Sign::Minus),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, PartialEq)]
 pub enum Token {
     Plus,
     Minus,
@@ -45,6 +16,15 @@ pub enum Token {
     LeftParenthesis,
     RightParenthesis,
     Equal,
+    DoubleEqual,
+    NonEqual,
+    LessThan,
+    GreaterThan,
+    LessThanEq,
+    GreaterThanEq,
+    DoubleAnd,
+    DoubleOr,
+    Bang,
     Ident(Ident),
     Type(Type),
     Keyword(Keyword),
@@ -65,6 +45,15 @@ impl Display for Token {
                 Self::RightParenthesis => ")".to_string(),
                 Self::Type(t) => format!("{}", t),
                 Self::Equal => "=".to_string(),
+                Self::DoubleEqual => "==".to_string(),
+                Self::NonEqual => "!=".to_string(),
+                Self::LessThan => "<".to_string(),
+                Self::GreaterThan => ">".to_string(),
+                Self::LessThanEq => "<=".to_string(),
+                Self::GreaterThanEq => ">=".to_string(),
+                Self::DoubleAnd => "&&".to_string(),
+                Self::DoubleOr => "||".to_string(),
+                Self::Bang => "!".to_string(),
                 Self::Ident(i) => format!("{}", i),
                 Self::Keyword(k) => format!("{}", k),
                 Self::EOF => "EOF".to_string(),

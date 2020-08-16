@@ -1,5 +1,10 @@
 expr: KEYWORD:LET IDENT EQ expr
-    : term ((PLUS|MINUS) term)*
+    : comp-expr ((AND|OR) comp-expr)*
+
+comp-expr   : NOT comp-expr
+            : arith-expr ((EE|LT|GT||LTE|GTE) arith-expr)*
+
+arith-expr : term ((PLUS|MINUS) term)*
 
 term: number ((MUL|DIV) number)*
 

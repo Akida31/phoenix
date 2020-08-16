@@ -7,10 +7,10 @@ mod token;
 use ast::nodes::{BinaryOperationNode, Node, NodeType, OperationType, UnaryOperationNode};
 use stack::Stack;
 use token::types::Type;
-use token::Sign;
 
-use crate::interpreter::ast::nodes::Assignment;
+use crate::interpreter::ast::nodes::{Assignment, UnaryOperation};
 use crate::interpreter::token::ident::Ident;
+use crate::interpreter::token::types::Integer;
 pub use errors::*;
 use token::Token;
 
@@ -141,7 +141,22 @@ pub fn new_stack() -> Stack {
 }
 
 pub fn run(text: String, file_name: String, stack: Option<Stack>) -> InterpretionResult {
-    let stack = stack.unwrap_or_else(new_stack);
+    let mut stack = stack.unwrap_or_else(new_stack);
+
+    // Built-in variables
+    stack.set(
+        Ident::new("null".to_string()),
+        Type::Integer(Integer::new(0)),
+    );
+    stack.set(
+        Ident::new("true".to_string()),
+        Type::Integer(Integer::new(1)),
+    );
+    stack.set(
+        Ident::new("false".to_string()),
+        Type::Integer(Integer::new(0)),
+    );
+
     let mut lexer = lexer::Lexer::new(text, file_name.clone());
     let tokens = match lexer.make_tokens() {
         Ok(t) => t,
@@ -187,7 +202,7 @@ fn visit_var(node: Ident, context: Context) -> Result<(Type, Context), Error> {
         Some(val) => Ok((val, context)),
         None => Err(Error::new(
             ErrorKind::NameError,
-            format!("{} is not defined", node.get()),
+            &*format!("{} is not defined", node.get()),
             Some(context.get_position()),
         )),
     }
@@ -206,9 +221,17 @@ fn visit_binary_operation(
         Token::Minus => left_ty.as_ref().sub(right_ty),
         Token::Star => left_ty.as_ref().mul(right_ty),
         Token::Slash => left_ty.as_ref().div(right_ty),
+        Token::DoubleEqual => left_ty.as_ref().eq(right_ty),
+        Token::NonEqual => left_ty.as_ref().neq(right_ty),
+        Token::LessThan => left_ty.as_ref().lt(right_ty),
+        Token::GreaterThan => left_ty.as_ref().gt(right_ty),
+        Token::LessThanEq => left_ty.as_ref().lte(right_ty),
+        Token::GreaterThanEq => left_ty.as_ref().gte(right_ty),
+        Token::DoubleAnd => left_ty.as_ref().and(right_ty),
+        Token::DoubleOr => left_ty.as_ref().or(right_ty),
         t => Err(Error::new(
             ErrorKind::Undefined,
-            format!("can't operate on token {}", t),
+            &*format!("can't operate on token {}", t),
             Some(ctx.get_position()),
         )),
     };
@@ -235,8 +258,9 @@ fn visit_unary_operation(
     let new_ctx = Context::new(new_pos, context.stack.clone(), Some(context));
     Ok((
         match node.get_operation() {
-            Sign::Plus => ty,
-            Sign::Minus => ty.as_ref().neg()?,
+            UnaryOperation::Plus => ty,
+            UnaryOperation::Minus => ty.as_ref().neg()?,
+            UnaryOperation::Not => ty.as_ref().not()?,
         },
         new_ctx,
     ))

@@ -2,7 +2,7 @@ use std::fmt::{self, Display, Formatter};
 
 use crate::interpreter::token::ident::Ident;
 use crate::interpreter::token::types::Type;
-use crate::interpreter::{token::Sign, Position, Token};
+use crate::interpreter::{Position, Token};
 
 #[derive(Clone)]
 pub struct Node {
@@ -85,8 +85,8 @@ pub enum OperationType {
 impl Display for OperationType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::BinaryOperationNode(node) => write!(f, "{}", node.to_string()),
-            Self::UnaryOperationNode(node) => write!(f, "({})", node.to_string()),
+            Self::BinaryOperationNode(node) => write!(f, "{}", node),
+            Self::UnaryOperationNode(node) => write!(f, "({})", node),
         }
     }
 }
@@ -122,33 +122,62 @@ impl BinaryOperationNode {
 
 impl Display for BinaryOperationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}{}", self.left, self.operation, self.right)
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum UnaryOperation {
+    Plus,
+    Minus,
+    Not,
+}
+
+impl Display for UnaryOperation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}{}{}",
-            self.left.to_string(),
-            self.operation,
-            self.right.to_string()
+            "{}",
+            match self {
+                Self::Plus => "+",
+                Self::Minus => "-",
+                Self::Not => "!",
+            }
         )
+    }
+}
+
+impl UnaryOperation {
+    pub fn from_token(t: Token) -> Option<Self> {
+        match t {
+            Token::Plus => Some(UnaryOperation::Plus),
+            Token::Minus => Some(UnaryOperation::Minus),
+            Token::Bang => Some(UnaryOperation::Not),
+            _ => None,
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct UnaryOperationNode {
-    operation: Sign,
+    operation: UnaryOperation,
     node: Node,
 }
 
 impl UnaryOperationNode {
-    pub fn new(operation: Sign, node: Node) -> Self {
-        Self { operation, node }
-    }
-
     pub fn get_node(&self) -> Node {
         self.node.clone()
     }
 
-    pub fn get_operation(&self) -> Sign {
+    pub fn get_operation(&self) -> UnaryOperation {
         self.operation.clone()
+    }
+
+    pub fn from_token(t: Token, node: Node) -> Option<Self> {
+        Some(Self {
+            operation: UnaryOperation::from_token(t)?,
+            node,
+        })
     }
 }
 

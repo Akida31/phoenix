@@ -4,7 +4,6 @@ pub mod nodes;
 
 use crate::interpreter::ast::nodes::{Assignment, NodeType, OperationType, UnaryOperationNode};
 use crate::interpreter::token::keyword::Keyword;
-use crate::interpreter::token::Sign;
 use crate::interpreter::ErrorKind::{EndOfFile, SyntaxError};
 use nodes::{BinaryOperationNode, Node};
 
@@ -27,7 +26,7 @@ impl Parser {
                     if current_token.0 != Token::EOF {
                         return Err(Error::new(
                             SyntaxError,
-                            "Expected one of the following: '+' '-' '*' or '/'".to_string(),
+                            "Expected one of the following: '+' '-' '*' or '/'",
                             Some(current_token.1),
                         ));
                     }
@@ -99,29 +98,55 @@ impl Parser {
                             ));
                         }
                     }
-                    Err(Error::new(
-                        ErrorKind::SyntaxError,
-                        "expected =".to_string(),
-                        Some(pos),
-                    ))
+                    Err(Error::new(ErrorKind::SyntaxError, "expected =", Some(pos)))
                 } else {
                     Err(Error::new(
                         ErrorKind::SyntaxError,
-                        "expected identifier".to_string(),
+                        "expected identifier",
                         Some(pos),
                     ))
                 }
             } else {
                 Err(Error::new(
                     ErrorKind::SyntaxError,
-                    "expected expression".to_string(),
+                    "expected expression",
                     None,
                 ))
             }
         } else {
-            self.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
+            self.binary_operation(&mut comp_expr, vec![Token::DoubleAnd, Token::DoubleOr])
+            //self.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
         }
     }
+}
+
+fn comp_expr(parser: &mut Parser) -> Result<Node, Error> {
+    if let Some((Token::Bang, pos)) = parser.current_token() {
+        parser.advance();
+        let node = comp_expr(parser)?;
+        Ok(Node::new(
+            NodeType::Operation(OperationType::UnaryOperationNode(Box::new(
+                UnaryOperationNode::from_token(Token::Bang, node).unwrap(),
+            ))),
+            pos,
+        ))
+    } else {
+        parser.binary_operation(
+            &mut arith_expr,
+            vec![
+                Token::DoubleEqual,
+                Token::NonEqual,
+                Token::LessThan,
+                Token::GreaterThan,
+                Token::LessThanEq,
+                Token::GreaterThanEq,
+            ],
+        )
+    }
+}
+
+fn arith_expr(parser: &mut Parser) -> Result<Node, Error> {
+    parser.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
 }
 
 fn number(parser: &mut Parser) -> Result<Node, Error> {
@@ -139,11 +164,8 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
             match number(parser) {
                 Ok(ty) => Ok(Node::new(
                     NodeType::Operation(OperationType::UnaryOperationNode(
-                        // unwrap is safe because of the check above
-                        Box::new(UnaryOperationNode::new(
-                            Sign::from_token(token).unwrap(),
-                            ty,
-                        )),
+                        // unwrap is safe because of the check above (Minus or Plus)
+                        Box::new(UnaryOperationNode::from_token(token, ty).unwrap()),
                     )),
                     pos,
                 )),
@@ -152,7 +174,7 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
         }
         Some((Token::EOF, position)) => Err(Error::new(
             EndOfFile,
-            "expected something but reached the end of file".to_string(),
+            "expected something but reached the end of file",
             Some(position),
         )),
         Some((Token::LeftParenthesis, position)) => {
@@ -168,11 +190,7 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
                         parser.advance();
                         Ok(expr)
                     } else {
-                        Err(Error::new(
-                            SyntaxError,
-                            "expected )".to_string(),
-                            Some(position),
-                        ))
+                        Err(Error::new(SyntaxError, "expected )", Some(position)))
                     }
                 }
                 Err(e) => Err(e),
@@ -180,14 +198,10 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
         }
         Some((token, position)) => Err(Error::new(
             SyntaxError,
-            format!("{} is not valid in this context", token),
+            &*format!("{} is not valid in this context", token),
             Some(position),
         )),
-        None => Err(Error::new(
-            SyntaxError,
-            "can't parse empty token".to_string(),
-            None,
-        )),
+        None => Err(Error::new(SyntaxError, "can't parse empty token", None)),
     }
 }
 

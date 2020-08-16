@@ -1,4 +1,4 @@
-use crate::interpreter::token::types::{Operators, Type};
+use crate::interpreter::token::types::{Cmp, CmpResult, Operators, Type};
 use crate::interpreter::{Error, ErrorKind};
 use std::fmt::{self, Display, Formatter};
 
@@ -19,60 +19,87 @@ impl Display for Integer {
     }
 }
 
+impl Cmp for Integer {
+    fn cmp(&self, other: Type) -> Result<CmpResult, Error> {
+        match other {
+            Type::Integer(v) => Ok(self.value.cmp(&v.value).into()),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
+        }
+    }
+}
+
 impl Operators for Integer {
     fn add(&self, other: Type) -> Result<Type, Error> {
         match other {
             Type::Integer(v) => Ok(Type::Integer(Self::new(self.value + v.value))),
-            _ => Err(Error::new(
-                ErrorKind::TypeError,
-                "No valid type".to_string(),
-                None,
-            )),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
         }
     }
 
     fn sub(&self, other: Type) -> Result<Type, Error> {
         match other {
             Type::Integer(v) => Ok(Type::Integer(Self::new(self.value - v.value))),
-            _ => Err(Error::new(
-                ErrorKind::TypeError,
-                "No valid type".to_string(),
-                None,
-            )),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
         }
     }
 
     fn mul(&self, other: Type) -> Result<Type, Error> {
         match other {
             Type::Integer(v) => Ok(Type::Integer(Self::new(self.value * v.value))),
-            _ => Err(Error::new(
-                ErrorKind::TypeError,
-                "No valid type".to_string(),
-                None,
-            )),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
         }
     }
     fn div(&self, other: Type) -> Result<Type, Error> {
         if other == Type::Integer(Integer::new(0)) {
             Err(Error::new(
                 ErrorKind::ZeroDivision,
-                "can't divide by 0".to_string(),
+                "can't divide by 0",
                 None,
             ))
         } else {
             match other {
                 Type::Integer(v) => Ok(Type::Integer(Self::new(self.value / v.value))),
-                _ => Err(Error::new(
-                    ErrorKind::TypeError,
-                    "No valid type".to_string(),
-                    None,
-                )),
+                _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
             }
         }
     }
 
     fn neg(&self) -> Result<Type, Error> {
         Ok(Type::Integer(Self::new(-self.value)))
+    }
+
+    fn and(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Integer(v) => Ok(Type::Integer(Self::new(
+                if self.value != 0 && v.value != 0 {
+                    1
+                } else {
+                    0
+                },
+            ))),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
+        }
+    }
+
+    fn or(&self, other: Type) -> Result<Type, Error> {
+        match other {
+            Type::Integer(v) => Ok(Type::Integer(Self::new(
+                if self.value != 0 || v.value != 0 {
+                    1
+                } else {
+                    0
+                },
+            ))),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
+        }
+    }
+
+    fn not(&self) -> Result<Type, Error> {
+        Ok(Type::Integer(Integer::new(if self.value == 0 {
+            1
+        } else {
+            0
+        })))
     }
 }
 
@@ -93,37 +120,44 @@ impl Display for Float {
     }
 }
 
+impl Cmp for Float {
+    fn cmp(&self, other: Type) -> Result<CmpResult, Error> {
+        match other {
+            Type::Float(v) => match self.value.partial_cmp(&v.value) {
+                Some(v) => Ok(v.into()),
+                None => Err(Error::new(
+                    ErrorKind::Undefined,
+                    &format!(
+                        "Invalid float comparison between {} and {}",
+                        self.value, v.value
+                    ),
+                    None,
+                )),
+            },
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
+        }
+    }
+}
+
 impl Operators for Float {
     fn add(&self, other: Type) -> Result<Type, Error> {
         match other {
             Type::Float(v) => Ok(Type::Float(Self::new(self.value + v.value))),
-            _ => Err(Error::new(
-                ErrorKind::TypeError,
-                "No valid type".to_string(),
-                None,
-            )),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
         }
     }
 
     fn sub(&self, other: Type) -> Result<Type, Error> {
         match other {
             Type::Float(v) => Ok(Type::Float(Self::new(self.value - v.value))),
-            _ => Err(Error::new(
-                ErrorKind::TypeError,
-                "No valid type".to_string(),
-                None,
-            )),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
         }
     }
 
     fn mul(&self, other: Type) -> Result<Type, Error> {
         match other {
             Type::Float(v) => Ok(Type::Float(Self::new(self.value * v.value))),
-            _ => Err(Error::new(
-                ErrorKind::TypeError,
-                "No valid type".to_string(),
-                None,
-            )),
+            _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
         }
     }
 
@@ -131,17 +165,13 @@ impl Operators for Float {
         if other == Type::Float(Float::new(0.0)) {
             Err(Error::new(
                 ErrorKind::ZeroDivision,
-                "can't divide by 0".to_string(),
+                "can't divide by 0",
                 None,
             ))
         } else {
             match other {
                 Type::Float(v) => Ok(Type::Float(Self::new(self.value / v.value))),
-                _ => Err(Error::new(
-                    ErrorKind::TypeError,
-                    "No valid type".to_string(),
-                    None,
-                )),
+                _ => Err(Error::new(ErrorKind::TypeError, "No valid type", None)),
             }
         }
     }

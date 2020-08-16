@@ -19,10 +19,10 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind, message: String, position: Option<Position>) -> Self {
+    pub fn new(kind: ErrorKind, message: &str, position: Option<Position>) -> Self {
         Self {
             kind,
-            message,
+            message: String::from(message),
             position,
             context: None,
         }
