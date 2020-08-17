@@ -35,6 +35,7 @@ pub enum NodeType {
     Operation(OperationType),
     Assign(Assignment),
     Var(Ident),
+    IfNode(IfNode),
 }
 
 impl Display for NodeType {
@@ -44,6 +45,7 @@ impl Display for NodeType {
             Self::Operation(op) => write!(f, "({})", op),
             Self::Assign(node) => write!(f, "{}", node),
             Self::Var(node) => write!(f, "{}", node),
+            Self::IfNode(node) => write!(f, "{}", node),
         }
     }
 }
@@ -73,6 +75,42 @@ impl Assignment {
 impl Display for Assignment {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}={}", self.name, self.expr)
+    }
+}
+
+#[derive(Clone)]
+pub struct IfNode {
+    cases: Vec<(Node, Node)>,
+    else_case: Box<Option<Node>>,
+}
+
+impl IfNode {
+    pub fn new(cases: Vec<(Node, Node)>, else_case: Option<Node>) -> Self {
+        Self {
+            cases,
+            else_case: Box::new(else_case),
+        }
+    }
+    pub fn get_cases(&self) -> Vec<(Node, Node)> {
+        self.cases.clone()
+    }
+    pub fn get_else_case(&self) -> Box<Option<Node>> {
+        self.else_case.clone()
+    }
+}
+
+impl Display for IfNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut cases = format!("if {} then {}", self.cases[0].1, self.cases[0].1);
+        let mut it = self.cases.iter();
+        it.next();
+        for (case, expr) in it {
+            cases = format!("{}\n   elif {} then {}", cases, case, expr);
+        }
+        if let Some(else_case) = *self.else_case.clone() {
+            cases = format!("{}\n   else {}", cases, else_case);
+        }
+        write!(f, "{}", cases)
     }
 }
 

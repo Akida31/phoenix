@@ -6,9 +6,9 @@ mod token;
 
 use ast::nodes::{BinaryOperationNode, Node, NodeType, OperationType, UnaryOperationNode};
 use stack::Stack;
-use token::types::Type;
+pub use token::types::Type;
 
-use crate::interpreter::ast::nodes::{Assignment, UnaryOperation};
+use crate::interpreter::ast::nodes::{Assignment, IfNode, UnaryOperation};
 use crate::interpreter::token::ident::Ident;
 use crate::interpreter::token::types::Integer;
 pub use errors::*;
@@ -186,6 +186,7 @@ pub fn visit(node: Node, context: Context) -> Result<(Type, Context), Error> {
         },
         NodeType::Var(id) => visit_var(id, context),
         NodeType::Assign(a) => visit_assignment(a, context),
+        NodeType::IfNode(node) => visit_if_node(node, context),
     }
 }
 
@@ -208,6 +209,20 @@ fn visit_var(node: Ident, context: Context) -> Result<(Type, Context), Error> {
     }
 }
 
+fn visit_if_node(node: IfNode, context: Context) -> Result<(Type, Context), Error> {
+    for (condition, expr) in node.get_cases().into_iter() {
+        let condition_value = visit(condition, context.clone())?;
+        if condition_value.0.as_conversion().__bool__()? {
+            return visit(expr, context);
+        }
+    }
+    if let Some(else_case) = *node.get_else_case() {
+        visit(else_case, context)
+    } else {
+        Ok((Type::none(), context))
+    }
+}
+
 // TODO improve position marking
 fn visit_binary_operation(
     node: BinaryOperationNode,
@@ -217,18 +232,18 @@ fn visit_binary_operation(
     let (right_ty, right_ctx) = visit(node.get_right(), context)?;
     let ctx = left_ctx.combine(right_ctx);
     let full = match node.get_operation() {
-        Token::Plus => left_ty.as_ref().add(right_ty),
-        Token::Minus => left_ty.as_ref().sub(right_ty),
-        Token::Star => left_ty.as_ref().mul(right_ty),
-        Token::Slash => left_ty.as_ref().div(right_ty),
-        Token::DoubleEqual => left_ty.as_ref().eq(right_ty),
-        Token::NonEqual => left_ty.as_ref().neq(right_ty),
-        Token::LessThan => left_ty.as_ref().lt(right_ty),
-        Token::GreaterThan => left_ty.as_ref().gt(right_ty),
-        Token::LessThanEq => left_ty.as_ref().lte(right_ty),
-        Token::GreaterThanEq => left_ty.as_ref().gte(right_ty),
-        Token::DoubleAnd => left_ty.as_ref().and(right_ty),
-        Token::DoubleOr => left_ty.as_ref().or(right_ty),
+        Token::Plus => left_ty.as_operators().add(right_ty),
+        Token::Minus => left_ty.as_operators().sub(right_ty),
+        Token::Star => left_ty.as_operators().mul(right_ty),
+        Token::Slash => left_ty.as_operators().div(right_ty),
+        Token::DoubleEqual => left_ty.as_operators().eq(right_ty),
+        Token::NonEqual => left_ty.as_operators().neq(right_ty),
+        Token::LessThan => left_ty.as_operators().lt(right_ty),
+        Token::GreaterThan => left_ty.as_operators().gt(right_ty),
+        Token::LessThanEq => left_ty.as_operators().lte(right_ty),
+        Token::GreaterThanEq => left_ty.as_operators().gte(right_ty),
+        Token::DoubleAnd => left_ty.as_operators().and(right_ty),
+        Token::DoubleOr => left_ty.as_operators().or(right_ty),
         t => Err(Error::new(
             ErrorKind::Undefined,
             &*format!("can't operate on token {}", t),
@@ -259,8 +274,8 @@ fn visit_unary_operation(
     Ok((
         match node.get_operation() {
             UnaryOperation::Plus => ty,
-            UnaryOperation::Minus => ty.as_ref().neg()?,
-            UnaryOperation::Not => ty.as_ref().not()?,
+            UnaryOperation::Minus => ty.as_operators().neg()?,
+            UnaryOperation::Not => ty.as_operators().not()?,
         },
         new_ctx,
     ))

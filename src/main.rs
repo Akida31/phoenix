@@ -27,8 +27,9 @@ fn main() {
         let text = input!(">");
         let res = interpreter::run(text, "\"<stdin>\"".to_string(), Some(stack));
         match res.res {
-            Ok(ty) => println!("{}", ty),
+            Ok(ty) if ty != interpreter::Type::none() => println!("{}", ty),
             Err(e) => println!("{}", e),
+            _ => {} // don't show None Results
         };
         stack = res.stack;
     }

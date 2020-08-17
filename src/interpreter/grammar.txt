@@ -1,13 +1,18 @@
 expr: KEYWORD:LET IDENT EQ expr
     : comp-expr ((AND|OR) comp-expr)*
 
-comp-expr   : NOT comp-expr
+comp-expr   : KEYWOARD:NOT comp-expr
             : arith-expr ((EE|LT|GT||LTE|GTE) arith-expr)*
 
 arith-expr : term ((PLUS|MINUS) term)*
 
-term: number ((MUL|DIV) number)*
+term: atom ((MUL|DIV) atom)*
 
-number: (PLUS|MINUS)? INT|FLOAT|IDENT
-    | LeftParenthesis expr RightParenthesis
+atom: (PLUS|MINUS)? INT|FLOAT|IDENT
+    : LeftParenthesis expr RightParenthesis
+    : if-expr
+
+if-expr: KEYWORD:IF expr KEYWORD:THEN expr
+         (KEYWORD:ELIF expr KEYWORD:THEN expr)*
+         (KEYWORD:ELSE expr)?
 

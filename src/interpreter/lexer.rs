@@ -98,7 +98,7 @@ impl Lexer {
         }
         Ok((
             if keyword::is_keyword(ident.clone()) {
-                Token::Keyword(keyword::Keyword::Let)
+                Token::Keyword(keyword::from_str(&*ident).unwrap())
             } else {
                 Token::Ident(ident::Ident::new(ident))
             },
@@ -106,15 +106,19 @@ impl Lexer {
         ))
     }
 
+    fn check_eq(&mut self, t1: Token, t2: Token, pos: Position) -> (Token, Position) {
+        if self.current_char == Some('=') {
+            self.advance();
+            (t1, pos.combine(self.pos.clone()))
+        } else {
+            (t2, pos)
+        }
+    }
+
     fn make_less_than(&mut self) -> (Token, Position) {
         let pos = self.pos.clone();
         self.advance();
-        if self.current_char == Some('=') {
-            self.advance();
-            (Token::LessThanEq, pos.combine(self.pos.clone()))
-        } else {
-            (Token::LessThan, pos)
-        }
+        self.check_eq(Token::LessThanEq, Token::LessThan, pos)
     }
 
     fn make_and(&mut self) -> Result<(Token, Position), Error> {
@@ -150,23 +154,13 @@ impl Lexer {
     fn make_greater_than(&mut self) -> (Token, Position) {
         let pos = self.pos.clone();
         self.advance();
-        if self.current_char == Some('=') {
-            self.advance();
-            (Token::GreaterThanEq, pos.combine(self.pos.clone()))
-        } else {
-            (Token::GreaterThan, pos)
-        }
+        self.check_eq(Token::GreaterThanEq, Token::GreaterThan, pos)
     }
 
     fn make_eq(&mut self) -> (Token, Position) {
         let pos = self.pos.clone();
         self.advance();
-        if self.current_char == Some('=') {
-            self.advance();
-            (Token::DoubleEqual, pos.combine(self.pos.clone()))
-        } else {
-            (Token::Equal, pos)
-        }
+        self.check_eq(Token::DoubleEqual, Token::Equal, pos)
     }
 
     fn make_not(&mut self) -> (Token, Position) {

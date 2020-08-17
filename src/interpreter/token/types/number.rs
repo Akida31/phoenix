@@ -1,4 +1,4 @@
-use crate::interpreter::token::types::{Cmp, CmpResult, Operators, Type};
+use crate::interpreter::token::types::{Cmp, CmpResult, Conversion, Operators, Type};
 use crate::interpreter::{Error, ErrorKind};
 use std::fmt::{self, Display, Formatter};
 
@@ -103,6 +103,12 @@ impl Operators for Integer {
     }
 }
 
+impl Conversion for Integer {
+    fn __bool__(&self) -> Result<bool, Error> {
+        Ok(self.value != 0)
+    }
+}
+
 #[derive(Clone, PartialEq)]
 pub struct Float {
     value: f64,
@@ -178,5 +184,11 @@ impl Operators for Float {
 
     fn neg(&self) -> Result<Type, Error> {
         Ok(Type::Float(Self::new(-self.value)))
+    }
+}
+
+impl Conversion for Float {
+    fn __bool__(&self) -> Result<bool, Error> {
+        Ok(self.value != 0.0)
     }
 }

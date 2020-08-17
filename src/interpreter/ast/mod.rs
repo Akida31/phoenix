@@ -2,7 +2,9 @@ use crate::interpreter::{Error, ErrorKind, Position, Token};
 
 pub mod nodes;
 
-use crate::interpreter::ast::nodes::{Assignment, NodeType, OperationType, UnaryOperationNode};
+use crate::interpreter::ast::nodes::{
+    Assignment, IfNode, NodeType, OperationType, UnaryOperationNode,
+};
 use crate::interpreter::token::keyword::Keyword;
 use crate::interpreter::ErrorKind::{EndOfFile, SyntaxError};
 use nodes::{BinaryOperationNode, Node};
@@ -118,6 +120,54 @@ impl Parser {
             //self.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
         }
     }
+
+    fn if_expr(&mut self, position: Position) -> Result<Node, Error> {
+        self.advance();
+        let condition = self.expr()?;
+        if let Some((Token::Keyword(Keyword::Then), _pos)) = self.current_token() {
+        } else {
+            let pos = if let Some((_, pos)) = self.current_token() {
+                Some(pos)
+            } else {
+                None
+            };
+            return Err(Error::new(ErrorKind::SyntaxError, "expected then", pos));
+        }
+        self.advance();
+        let expr = self.expr()?;
+        let mut cases = vec![(condition, expr)];
+        while let Some((Token::Keyword(Keyword::Elif), _pos)) = self.current_token() {
+            self.advance();
+            let condition = self.expr()?;
+            if let Some((Token::Keyword(Keyword::Then), _pos)) = self.current_token() {
+            } else {
+                let pos = if let Some((_, pos)) = self.current_token() {
+                    Some(pos)
+                } else {
+                    None
+                };
+                return Err(Error::new(ErrorKind::SyntaxError, "expected then", pos));
+            }
+            self.advance();
+            let expr = self.expr()?;
+            cases.push((condition, expr));
+        }
+        let else_case = if let Some((Token::Keyword(Keyword::Else), _pos)) = self.current_token() {
+            self.advance();
+            Some(self.expr()?)
+        } else {
+            None
+        };
+        let pos = if let Some((_, pos)) = self.current_token() {
+            position.combine(pos)
+        } else {
+            position
+        };
+        Ok(Node::new(
+            NodeType::IfNode(IfNode::new(cases, else_case)),
+            pos,
+        ))
+    }
 }
 
 fn comp_expr(parser: &mut Parser) -> Result<Node, Error> {
@@ -149,7 +199,7 @@ fn arith_expr(parser: &mut Parser) -> Result<Node, Error> {
     parser.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
 }
 
-fn number(parser: &mut Parser) -> Result<Node, Error> {
+fn atom(parser: &mut Parser) -> Result<Node, Error> {
     match parser.current_token() {
         Some((Token::Type(ty), pos)) => {
             parser.advance();
@@ -161,7 +211,7 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
         }
         Some((token, pos)) if token == Token::Minus || token == Token::Plus => {
             parser.advance();
-            match number(parser) {
+            match atom(parser) {
                 Ok(ty) => Ok(Node::new(
                     NodeType::Operation(OperationType::UnaryOperationNode(
                         // unwrap is safe because of the check above (Minus or Plus)
@@ -196,6 +246,7 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
                 Err(e) => Err(e),
             }
         }
+        Some((Token::Keyword(Keyword::If), position)) => parser.if_expr(position),
         Some((token, position)) => Err(Error::new(
             SyntaxError,
             &*format!("{} is not valid in this context", token),
@@ -206,5 +257,5 @@ fn number(parser: &mut Parser) -> Result<Node, Error> {
 }
 
 fn term(parser: &mut Parser) -> Result<Node, Error> {
-    parser.binary_operation(&mut number, vec![Token::Star, Token::Slash])
+    parser.binary_operation(&mut atom, vec![Token::Star, Token::Slash])
 }

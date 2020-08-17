@@ -27,6 +27,35 @@ impl From<Ordering> for CmpResult {
     }
 }
 
+pub trait Conversion
+where
+    Self: std::fmt::Display,
+{
+    fn __int__(&self) -> Result<Integer, Error> {
+        Err(Error::new(
+            ErrorKind::Unimplemented,
+            &format!("can't convert {} to {}", self, "int"),
+            None,
+        ))
+    }
+
+    fn __float__(&self) -> Result<Float, Error> {
+        Err(Error::new(
+            ErrorKind::Unimplemented,
+            &format!("can't convert {} to {}", self, "int"),
+            None,
+        ))
+    }
+
+    fn __bool__(&self) -> Result<bool, Error> {
+        Err(Error::new(
+            ErrorKind::Unimplemented,
+            &format!("can't convert {} to {}", self, "int"),
+            None,
+        ))
+    }
+}
+
 macro_rules! new_op {
     ($id: ident, $name: literal + other) => {
         fn $id(&self, _other: Type) -> Result<Type, Error> {
@@ -93,6 +122,7 @@ where
 pub enum Type {
     Integer(Integer),
     Float(Float),
+    None(NoneType),
 }
 
 impl std::fmt::Debug for Type {
@@ -101,12 +131,24 @@ impl std::fmt::Debug for Type {
     }
 }
 
-impl std::convert::AsRef<dyn Operators> for Type {
-    fn as_ref(&self) -> &(dyn Operators + 'static) {
+impl Type {
+    pub fn as_operators(&self) -> &(dyn Operators + 'static) {
         match self {
             Type::Integer(v) => v,
             Type::Float(v) => v,
+            Type::None(v) => v,
         }
+    }
+    pub fn as_conversion(&self) -> &(dyn Conversion + 'static) {
+        match self {
+            Type::Integer(v) => v,
+            Type::Float(v) => v,
+            Type::None(v) => v,
+        }
+    }
+
+    pub fn none() -> Self {
+        Self::None(NoneType::new())
     }
 }
 
@@ -119,3 +161,32 @@ impl std::convert::From<bool> for Type {
         }
     }
 }
+
+#[derive(Copy, Clone, PartialOrd, PartialEq)]
+pub struct NoneType {}
+
+impl NoneType {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl std::fmt::Display for NoneType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "None")
+    }
+}
+
+impl Cmp for NoneType {
+    fn cmp(&self, _other: Type) -> Result<CmpResult, Error> {
+        Err(Error::new(
+            ErrorKind::Unimplemented,
+            "can't compare None",
+            None,
+        ))
+    }
+}
+
+impl Operators for NoneType {}
+
+impl Conversion for NoneType {}
