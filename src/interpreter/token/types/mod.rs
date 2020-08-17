@@ -152,6 +152,16 @@ impl Type {
     }
 }
 
+impl Cmp for Type {
+    fn cmp(&self, other: Type) -> Result<CmpResult, Error> {
+        match self {
+            Self::Integer(v) => v.cmp(other),
+            Self::Float(v) => v.cmp(other),
+            Self::None(v) => v.cmp(other),
+        }
+    }
+}
+
 impl std::convert::From<bool> for Type {
     fn from(b: bool) -> Self {
         if b {

@@ -58,6 +58,14 @@ impl Lexer {
                     tokens.push((Token::RightParenthesis, self.pos.clone()));
                     self.advance();
                 }
+                '{' => {
+                    tokens.push((Token::LeftCurlyBrackets, self.pos.clone()));
+                    self.advance();
+                }
+                '}' => {
+                    tokens.push((Token::RightCurlyBrackets, self.pos.clone()));
+                    self.advance();
+                }
                 '!' => tokens.push(self.make_not()),
                 '&' => tokens.push(self.make_and()?),
                 '|' => tokens.push(self.make_or()?),

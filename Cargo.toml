@@ -1,6 +1,6 @@
 [package]
 name = "phoenix"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["akida <47895118+Akida31@users.noreply.github.com>"]
 edition = "2018"
 description = "a simple programming language"

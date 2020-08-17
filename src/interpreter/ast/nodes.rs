@@ -29,25 +29,15 @@ impl Display for Node {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, derive_more::Display)]
 pub enum NodeType {
     Node(Type),
     Operation(OperationType),
     Assign(Assignment),
     Var(Ident),
     IfNode(IfNode),
-}
-
-impl Display for NodeType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Node(node) => write!(f, "{}", node),
-            Self::Operation(op) => write!(f, "({})", op),
-            Self::Assign(node) => write!(f, "{}", node),
-            Self::Var(node) => write!(f, "{}", node),
-            Self::IfNode(node) => write!(f, "{}", node),
-        }
-    }
+    ForNode(ForNode),
+    WhileNode(WhileNode),
 }
 
 #[derive(Clone)]
@@ -111,6 +101,69 @@ impl Display for IfNode {
             cases = format!("{}\n   else {}", cases, else_case);
         }
         write!(f, "{}", cases)
+    }
+}
+
+#[derive(Clone)]
+pub struct ForNode {
+    var_name: Ident,
+    start: Box<Node>,
+    end: Box<Node>,
+    body: Box<Node>,
+}
+
+impl ForNode {
+    pub fn new(var_name: Ident, start: Node, end: Node, body: Node) -> Self {
+        Self {
+            var_name,
+            start: Box::new(start),
+            end: Box::new(end),
+            body: Box::new(body),
+        }
+    }
+
+    pub fn get_all(self) -> (Ident, Node, Node, Node) {
+        (
+            self.var_name.clone(),
+            *self.start.clone(),
+            *self.end.clone(),
+            *self.body,
+        )
+    }
+}
+
+impl Display for ForNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "for {} in {} to {}\n\t do {}",
+            self.var_name, self.start, self.end, self.body
+        )
+    }
+}
+
+#[derive(Clone)]
+pub struct WhileNode {
+    cond: Box<Node>,
+    body: Box<Node>,
+}
+
+impl WhileNode {
+    pub fn new(cond: Node, body: Node) -> Self {
+        Self {
+            cond: Box::new(cond),
+            body: Box::new(body),
+        }
+    }
+
+    pub fn get_all(self) -> (Node, Node) {
+        (*self.cond.clone(), *self.body)
+    }
+}
+
+impl Display for WhileNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "while {} \n\tdo {}", self.cond, self.body)
     }
 }
 

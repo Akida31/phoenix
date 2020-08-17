@@ -1,6 +1,6 @@
 use crate::interpreter::{Context, Position};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ErrorKind {
     SyntaxError,
     EndOfFile,
@@ -11,6 +11,7 @@ pub enum ErrorKind {
     TypeError,
 }
 
+#[derive(Clone)]
 pub struct Error {
     kind: ErrorKind,
     message: String,

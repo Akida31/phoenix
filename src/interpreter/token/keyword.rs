@@ -5,13 +5,19 @@ pub enum Keyword {
     Else,
     Then,
     Elif,
+    For,
+    While,
+    In,
+    To,
 }
 
 pub fn keywords() -> Vec<String> {
-    ["let", "if", "else", "then", "elif"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect()
+    [
+        "let", "if", "else", "then", "elif", "for", "while", "in", "to",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
 }
 
 pub fn is_keyword(word: String) -> bool {
@@ -29,6 +35,10 @@ impl std::fmt::Display for Keyword {
                 Self::Else => "else",
                 Self::Then => "then",
                 Self::Elif => "elif",
+                Self::For => "for",
+                Self::While => "while",
+                Self::In => "in",
+                Self::To => "to",
             }
         )
     }
@@ -41,6 +51,10 @@ pub fn from_str(v: &str) -> Option<Keyword> {
         "else" => Some(Keyword::Else),
         "then" => Some(Keyword::Then),
         "elif" => Some(Keyword::Elif),
+        "for" => Some(Keyword::For),
+        "while" => Some(Keyword::While),
+        "in" => Some(Keyword::In),
+        "to" => Some(Keyword::To),
         _ => None,
     }
 }

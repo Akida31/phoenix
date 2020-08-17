@@ -1,14 +1,16 @@
-use crate::interpreter::{Error, ErrorKind, Position, Token};
+use crate::interpreter::{Error, Position, Token};
 
+mod exprs;
 pub mod nodes;
 
-use crate::interpreter::ast::nodes::{
-    Assignment, IfNode, NodeType, OperationType, UnaryOperationNode,
-};
+use exprs::*;
+
+use crate::interpreter::ast::nodes::{NodeType, OperationType, UnaryOperationNode};
 use crate::interpreter::token::keyword::Keyword;
 use crate::interpreter::ErrorKind::{EndOfFile, SyntaxError};
 use nodes::{BinaryOperationNode, Node};
 
+#[derive(Clone)]
 pub struct Parser {
     tokens: Vec<(Token, Position)>,
     index: isize,
@@ -22,7 +24,7 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Node, Error> {
-        match self.expr() {
+        match expr(self) {
             Ok(res) => {
                 if let Some(current_token) = self.current_token() {
                     if current_token.0 != Token::EOF {
@@ -47,9 +49,8 @@ impl Parser {
         }
     }
 
-    fn advance(&mut self) -> Option<(Token, Position)> {
+    fn advance(&mut self) {
         self.index += 1;
-        self.current_token()
     }
 
     fn binary_operation(
@@ -80,123 +81,6 @@ impl Parser {
         }
         Ok(left)
     }
-
-    fn expr(&mut self) -> Result<Node, Error> {
-        let current_token = self.current_token();
-        if current_token.is_some() && current_token.unwrap().0 == Token::Keyword(Keyword::Let) {
-            self.advance();
-            if let Some(c) = self.current_token() {
-                let pos = c.1;
-                if let Token::Ident(i) = c.0 {
-                    let name = i;
-                    self.advance();
-                    if let Some(c) = self.current_token() {
-                        if Token::Equal == c.0 {
-                            self.advance();
-                            let expr = self.expr()?;
-                            return Ok(Node::new(
-                                NodeType::Assign(Assignment::new(name, expr)),
-                                pos,
-                            ));
-                        }
-                    }
-                    Err(Error::new(ErrorKind::SyntaxError, "expected =", Some(pos)))
-                } else {
-                    Err(Error::new(
-                        ErrorKind::SyntaxError,
-                        "expected identifier",
-                        Some(pos),
-                    ))
-                }
-            } else {
-                Err(Error::new(
-                    ErrorKind::SyntaxError,
-                    "expected expression",
-                    None,
-                ))
-            }
-        } else {
-            self.binary_operation(&mut comp_expr, vec![Token::DoubleAnd, Token::DoubleOr])
-            //self.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
-        }
-    }
-
-    fn if_expr(&mut self, position: Position) -> Result<Node, Error> {
-        self.advance();
-        let condition = self.expr()?;
-        if let Some((Token::Keyword(Keyword::Then), _pos)) = self.current_token() {
-        } else {
-            let pos = if let Some((_, pos)) = self.current_token() {
-                Some(pos)
-            } else {
-                None
-            };
-            return Err(Error::new(ErrorKind::SyntaxError, "expected then", pos));
-        }
-        self.advance();
-        let expr = self.expr()?;
-        let mut cases = vec![(condition, expr)];
-        while let Some((Token::Keyword(Keyword::Elif), _pos)) = self.current_token() {
-            self.advance();
-            let condition = self.expr()?;
-            if let Some((Token::Keyword(Keyword::Then), _pos)) = self.current_token() {
-            } else {
-                let pos = if let Some((_, pos)) = self.current_token() {
-                    Some(pos)
-                } else {
-                    None
-                };
-                return Err(Error::new(ErrorKind::SyntaxError, "expected then", pos));
-            }
-            self.advance();
-            let expr = self.expr()?;
-            cases.push((condition, expr));
-        }
-        let else_case = if let Some((Token::Keyword(Keyword::Else), _pos)) = self.current_token() {
-            self.advance();
-            Some(self.expr()?)
-        } else {
-            None
-        };
-        let pos = if let Some((_, pos)) = self.current_token() {
-            position.combine(pos)
-        } else {
-            position
-        };
-        Ok(Node::new(
-            NodeType::IfNode(IfNode::new(cases, else_case)),
-            pos,
-        ))
-    }
-}
-
-fn comp_expr(parser: &mut Parser) -> Result<Node, Error> {
-    if let Some((Token::Bang, pos)) = parser.current_token() {
-        parser.advance();
-        let node = comp_expr(parser)?;
-        Ok(Node::new(
-            NodeType::Operation(OperationType::UnaryOperationNode(Box::new(
-                UnaryOperationNode::from_token(Token::Bang, node).unwrap(),
-            ))),
-            pos,
-        ))
-    } else {
-        parser.binary_operation(
-            &mut arith_expr,
-            vec![
-                Token::DoubleEqual,
-                Token::NonEqual,
-                Token::LessThan,
-                Token::GreaterThan,
-                Token::LessThanEq,
-                Token::GreaterThanEq,
-            ],
-        )
-    }
-}
-
-fn arith_expr(parser: &mut Parser) -> Result<Node, Error> {
-    parser.binary_operation(&mut term, vec![Token::Plus, Token::Minus])
 }
 
 fn atom(parser: &mut Parser) -> Result<Node, Error> {
@@ -229,7 +113,7 @@ fn atom(parser: &mut Parser) -> Result<Node, Error> {
         )),
         Some((Token::LeftParenthesis, position)) => {
             parser.advance();
-            match parser.expr() {
+            match expr(parser) {
                 Ok(expr) => {
                     if parser
                         .current_token()
@@ -246,10 +130,31 @@ fn atom(parser: &mut Parser) -> Result<Node, Error> {
                 Err(e) => Err(e),
             }
         }
-        Some((Token::Keyword(Keyword::If), position)) => parser.if_expr(position),
+        Some((Token::LeftCurlyBrackets, position)) => {
+            parser.advance();
+            match expr(parser) {
+                Ok(expr) => {
+                    if parser
+                        .current_token()
+                        .unwrap_or((Token::EOF, position.clone()))
+                        .0
+                        == Token::RightCurlyBrackets
+                    {
+                        parser.advance();
+                        Ok(expr)
+                    } else {
+                        Err(Error::new(SyntaxError, "expected }", Some(position)))
+                    }
+                }
+                Err(e) => Err(e),
+            }
+        }
+        Some((Token::Keyword(Keyword::If), position)) => if_expr(parser, position),
+        Some((Token::Keyword(Keyword::For), position)) => for_expr(parser, position),
+        Some((Token::Keyword(Keyword::While), position)) => while_expr(parser, position),
         Some((token, position)) => Err(Error::new(
             SyntaxError,
-            &*format!("{} is not valid in this context", token),
+            &*format!("'{}' is not valid in this context", token),
             Some(position),
         )),
         None => Err(Error::new(SyntaxError, "can't parse empty token", None)),

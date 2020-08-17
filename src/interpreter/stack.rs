@@ -18,8 +18,8 @@ impl Stack {
             },
         }
     }
-    pub fn get(&self, name: Ident) -> Option<Type> {
-        match self.symbols.get(&name) {
+    pub fn get(&self, name: &Ident) -> Option<Type> {
+        match self.symbols.get(name) {
             Some(a) => Some(a.clone()),
             None if self.parent_stack.is_some() => self.parent_stack.as_ref().unwrap().get(name),
             None => None,
